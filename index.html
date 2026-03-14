@@ -1,39 +1,513 @@
 <!DOCTYPE html>
-<html>
+<html lang="sk">
 <head>
   <meta charset="UTF-8">
-  <title>Chess Analyzer</title>
+  <title>Chess Analyzer – Stockfish</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Štýly pre šachovnicu -->
+  <!-- Chessboard.js štýly -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard.min.css">
 
-  <!-- Skripty pre šachovnicu a logiku šachu -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <!-- Reset + základný štýl -->
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      max-width: 1200px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .board-wrapper {
+      background: #020617;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+
+    #board {
+      width: 480px;
+      max-width: 90vw;
+    }
+
+    .side-panel {
+      flex: 1;
+      min-width: 280px;
+      max-width: 420px;
+      background: #020617;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-section {
+      background: #020617;
+      border-radius: 10px;
+      border: 1px solid #1f2937;
+      padding: 12px 14px;
+    }
+
+    .panel-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: #1d4ed8;
+      color: #e5e7eb;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease, transform 0.05s ease;
+      white-space: nowrap;
+    }
+
+    button.secondary {
+      background: #111827;
+      color: #e5e7eb;
+      border: 1px solid #1f2937;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    button:hover:not(:disabled) {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+
+    button.secondary:hover:not(:disabled) {
+      background: #1f2937;
+    }
+
+    .eval-bar-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .eval-bar {
+      position: relative;
+      width: 100%;
+      height: 220px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: linear-gradient(to top, #111827, #f9fafb);
+      border: 1px solid #1f2937;
+    }
+
+    .eval-fill {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      background: linear-gradient(to top, #16a34a, #22c55e);
+      transition: height 0.25s ease;
+    }
+
+    .eval-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    .eval-value {
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+
+    .eval-side {
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+
+    .engine-status {
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+
+    .line {
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #e5e7eb;
+    }
+
+    .moves-list {
+      max-height: 180px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .move {
+      display: inline-block;
+      margin-right: 6px;
+      margin-bottom: 4px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #111827;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .move:hover {
+      background: #1f2937;
+    }
+
+    .move-number {
+      color: #9ca3af;
+      margin-right: 2px;
+    }
+
+    .footer {
+      margin-top: 20px;
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-align: center;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #111827;
+      color: #9ca3af;
+    }
+
+    .blunder { color: #f97316; }
+    .mistake { color: #eab308; }
+    .good { color: #22c55e; }
+
+    @media (max-width: 900px) {
+      .container {
+        flex-direction: column;
+        align-items: center;
+      }
+      .side-panel {
+        max-width: 480px;
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 <body>
 
 <h1>Chess Analyzer</h1>
+<p class="subtitle">Stockfish analýza v prehliadači · bez registrácie · free forever</p>
 
-<div id="board" style="width: 400px; margin-bottom: 20px;"></div>
-<button id="analyzeBtn">Analyzovať</button>
+<div class="container">
+  <div class="board-wrapper">
+    <div id="board"></div>
+  </div>
 
-<pre id="output"></pre>
+  <div class="side-panel">
+    <div class="panel-section">
+      <div class="panel-title">Ovládanie</div>
+      <div class="controls">
+        <button id="btnNewGame">Nová partia</button>
+        <button id="btnUndo" class="secondary">Späť ťah</button>
+        <button id="btnAnalyze">Analyzovať pozíciu</button>
+      </div>
+      <div class="engine-status" id="engineStatus">Engine: inicializujem...</div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Eval</div>
+      <div class="eval-bar-wrapper">
+        <div class="eval-bar">
+          <div class="eval-fill" id="evalFill" style="height: 50%;"></div>
+        </div>
+        <div class="eval-labels">
+          <div>
+            <div class="eval-value" id="evalValue">0.00</div>
+            <div class="eval-side" id="evalSide">Vyrovnaná pozícia</div>
+          </div>
+          <div class="tag">
+            <span>Depth</span>
+            <span id="evalDepth">–</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Najlepší ťah & línia</div>
+      <div class="line" id="bestMoveLine">Klikni na „Analyzovať pozíciu“.</div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Ťahy</div>
+      <div class="moves-list" id="movesList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Postavené na Stockfish engine · všetko beží v tvojom prehliadači · žiadne servery, žiadne účty.
+</div>
+
+<!-- Skripty: chessboard.js, chess.js, Stockfish -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stockfish@16.1.0/src/stockfish.js"></script>
 
 <script>
+  // Šachová logika
   const game = new Chess();
+
   const board = Chessboard('board', {
     draggable: true,
     position: 'start',
     onDrop: (source, target) => {
       const move = game.move({ from: source, to: target, promotion: 'q' });
       if (!move) return 'snapback';
+      updateMovesList();
     }
   });
 
-  document.getElementById('analyzeBtn').onclick = () => {
-    document.getElementById('output').textContent = "Analýza zatiaľ nie je pripojená.";
+  // Engine
+  const engine = STOCKFISH();
+  let engineReady = false;
+  let analyzing = false;
+
+  const engineStatusEl = document.getElementById('engineStatus');
+  const evalFillEl = document.getElementById('evalFill');
+  const evalValueEl = document.getElementById('evalValue');
+  const evalSideEl = document.getElementById('evalSide');
+  const evalDepthEl = document.getElementById('evalDepth');
+  const bestMoveLineEl = document.getElementById('bestMoveLine');
+  const movesListEl = document.getElementById('movesList');
+
+  // Inicializácia engine
+  engine.onmessage = function (event) {
+    const line = event.data ? event.data : event;
+
+    if (line === 'uciok') {
+      engine.postMessage('isready');
+    } else if (line === 'readyok') {
+      engineReady = true;
+      engineStatusEl.textContent = 'Engine: pripravený';
+    }
+
+    if (line.startsWith('info')) {
+      parseInfoLine(line);
+    }
+
+    if (line.startsWith('bestmove')) {
+      analyzing = false;
+      engineStatusEl.textContent = 'Engine: pripravený';
+    }
   };
+
+  engine.postMessage('uci');
+
+  // Parsovanie info riadku z engine
+  function parseInfoLine(line) {
+    const tokens = line.split(' ');
+    let depth = null;
+    let score = null;
+    let mate = null;
+    let pvIndex = tokens.indexOf('pv');
+    let pvMoves = [];
+
+    for (let i = 0; i < tokens.length; i++) {
+      if (tokens[i] === 'depth') {
+        depth = parseInt(tokens[i + 1]);
+      }
+      if (tokens[i] === 'score') {
+        if (tokens[i + 1] === 'cp') {
+          score = parseInt(tokens[i + 2]);
+        } else if (tokens[i + 1] === 'mate') {
+          mate = parseInt(tokens[i + 2]);
+        }
+      }
+    }
+
+    if (pvIndex !== -1) {
+      pvMoves = tokens.slice(pvIndex + 1);
+    }
+
+    if (depth !== null) {
+      evalDepthEl.textContent = depth;
+    }
+
+    if (mate !== null) {
+      const side = mate > 0 ? 'Biely matuje' : 'Čierny matuje';
+      evalValueEl.textContent = '# ' + Math.abs(mate);
+      evalSideEl.textContent = side;
+      setEvalBarFromCp(mate > 0 ? 1000 : -1000);
+    } else if (score !== null) {
+      const cp = score;
+      const pawns = (cp / 100).toFixed(2);
+      evalValueEl.textContent = (cp >= 0 ? '+' : '') + pawns;
+
+      if (cp > 80) {
+        evalSideEl.textContent = 'Výhoda bieleho';
+      } else if (cp < -80) {
+        evalSideEl.textContent = 'Výhoda čierneho';
+      } else {
+        evalSideEl.textContent = 'Vyrovnaná pozícia';
+      }
+
+      setEvalBarFromCp(cp);
+    }
+
+    if (pvMoves.length > 0) {
+      const prettyLine = formatPvLine(pvMoves);
+      bestMoveLineEl.textContent = prettyLine;
+    }
+  }
+
+  // Eval bar – cp → percento
+  function setEvalBarFromCp(cp) {
+    const maxCp = 800; // ±8 pešiakov
+    let x = cp;
+    if (x > maxCp) x = maxCp;
+    if (x < -maxCp) x = -maxCp;
+
+    const percentWhite = 50 + (x / maxCp) * 50;
+    const clamped = Math.max(0, Math.min(100, percentWhite));
+
+    evalFillEl.style.height = clamped + '%';
+  }
+
+  // Formátovanie PV línie
+  function formatPvLine(pvMoves) {
+    const tempGame = new Chess(game.fen());
+    let result = 'Najlepšia línia: ';
+    let moveNumber = tempGame.history().length / 2 + 1;
+
+    for (let i = 0; i < pvMoves.length; i++) {
+      const moveStr = pvMoves[i];
+      const from = moveStr.substring(0, 2);
+      const to = moveStr.substring(2, 4);
+      const promotion = moveStr.length > 4 ? moveStr[4] : undefined;
+
+      const move = tempGame.move({ from, to, promotion });
+      if (!move) break;
+
+      if (move.color === 'w') {
+        result += moveNumber + '. ' + move.san + ' ';
+      } else {
+        result += move.san + ' ';
+        moveNumber++;
+      }
+    }
+
+    return result.trim();
+  }
+
+  // Aktualizácia zoznamu ťahov
+  function updateMovesList() {
+    const history = game.history({ verbose: true });
+    movesListEl.innerHTML = '';
+
+    let html = '';
+    for (let i = 0; i < history.length; i++) {
+      const move = history[i];
+      if (move.color === 'w') {
+        html += '<span class="move"><span class="move-number">' + (move.turn || (i / 2 + 1)) + '.</span>' + move.san + '</span>';
+      } else {
+        html += '<span class="move">' + move.san + '</span>';
+      }
+    }
+
+    movesListEl.innerHTML = html;
+  }
+
+  // Ovládanie
+  document.getElementById('btnNewGame').onclick = () => {
+    game.reset();
+    board.start();
+    updateMovesList();
+    evalValueEl.textContent = '0.00';
+    evalSideEl.textContent = 'Vyrovnaná pozícia';
+    evalDepthEl.textContent = '–';
+    evalFillEl.style.height = '50%';
+    bestMoveLineEl.textContent = 'Nová partia. Urob pár ťahov a klikni na „Analyzovať pozíciu“.';
+  };
+
+  document.getElementById('btnUndo').onclick = () => {
+    game.undo();
+    board.position(game.fen());
+    updateMovesList();
+  };
+
+  document.getElementById('btnAnalyze').onclick = () => {
+    if (!engineReady || analyzing) return;
+    analyzing = true;
+    engineStatusEl.textContent = 'Engine: analyzujem...';
+
+    const moves = game.history({ verbose: true })
+      .map(m => m.from + m.to + (m.promotion || ''))
+      .join(' ');
+
+    engine.postMessage('stop');
+    engine.postMessage('ucinewgame');
+    engine.postMessage('position startpos moves ' + moves);
+    engine.postMessage('go depth 18');
+  };
+
+  // Inicializácia
+  updateMovesList();
+  bestMoveLineEl.textContent = 'Urob pár ťahov a klikni na „Analyzovať pozíciu“.';
 </script>
 
 </body>
